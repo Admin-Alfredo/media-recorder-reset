@@ -1,0 +1,181 @@
+<style>
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  .container {
+    width: 70%;
+    margin: auto 0;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+</style>
+
+<div class="container">
+  <h1>Media Stream</h1>
+  <canvas id="canvas"></canvas>
+  <h2>Lista dos Procurados</h2>
+  <div id="list-app"></div>
+</div>
+
+<script>
+
+  const socket = new WebSocket('ws://127.0.0.1:1337');
+
+  // Connection opened
+  socket.addEventListener('open', (event) => {
+    socket.send('Hello Server!');
+  });
+
+  // Listen for messages
+  socket.addEventListener('message', (event) => {
+    console.log('Message from server ', event.data);
+  });
+
+
+  if (navigator.getUserMedia) {
+    navigator.getUserMedia({ audio: true }, (stream) => {
+      console.log("CAPTURANDO AUDIO...")
+
+
+      console.log(stream.pipeThrought)
+      const recorder = new MediaRecorder(stream)
+      recorder.start()
+
+      console.log("Stream Recorder ", recorder.stream)
+      recorder.ondataavailable = (e) => {
+        console.log(e.data, e.data.size)
+        download([e.data], 'meu audio.ogg', { type: "audio/ogg; codecs=opus" })
+      }
+      setTimeout(() => {
+        recorder.stop()
+      }, 70 * 1000)
+    }, () => { })
+  }
+
+
+
+
+  class Rect {
+    constructor(x = 0, y = 0, width = 0, height = 0) {
+      this.x = 0; this.y = y; this.width = width; this.height = height; this.color = '#f47'
+    }
+    setVelocityX(vx) { this.x += vx }
+    setX(x) { this.x = x; }
+    setY(y) { this.y = y; }
+    setWidth(w) { this.width = width; }
+    setHeight(h) { this.height = h }
+    getX() { return this.x }
+    getY() { return this.y }
+    getWidth() { return this.width }
+    getHeight() { return this.height }
+    setContext(c) { this.context2d = c; return this }
+    draw() {
+      this.context2d.fillStyle = this.color
+      this.context2d.fillRect(this.x, this.y, this.width, this.height)
+    }
+
+  }
+
+  const canvas = document.getElementById('canvas')
+  const container = document.querySelector('.container')
+  canvas.width = container.clientWidth
+  canvas.height = 300
+
+  const context2d = canvas.getContext('2d')
+
+  const stream = canvas.captureStream(480)
+  const options = { mimeType: "video/webm; codecs=vp9", video: { width: 1080, height: 840 } };
+  const mediaRecorder = new MediaRecorder(stream, options)
+  const recordedChuncks = []
+  // mediaRecorder.stream.
+  mediaRecorder.ondataavailable = function (e) {
+    console.log("On data avalable in progress....")
+
+    if (e.data.size > 0) {
+      recordedChuncks.push(e.data)
+      console.log("Chunk in push ", recordedChuncks)
+      download(recordedChuncks, 'game loading.mkv', { type: 'video/mkv' })
+    }
+
+  }
+  mediaRecorder.start()
+  function download(chuncks, downloadLabel, options = {}) {
+    const blob = new Blob(chuncks, options)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    document.body.appendChild(a)
+    a.style = "display:none"
+    a.href = url
+    a.download = downloadLabel
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  setTimeout(function () {
+    console.log("Stop recorded video ")
+    mediaRecorder.stop()
+  }, 10000)
+
+
+
+
+
+
+
+
+
+
+  const entity = new Rect(10, 10, 60, 70)
+    .setContext(context2d)
+
+  let [KEYBOARD_DOWN, KEYBOARD_LEFT, KEYBOARD_UP, KEYBOARD_RIGHT] = [false, false, false, false]
+
+  function update() {
+    context2d.fillStyle = '#000'
+    context2d.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
+    context2d.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight)
+
+    entity.draw()
+
+    if (KEYBOARD_LEFT) {
+      entity.setVelocityX(-5)
+    } else if (KEYBOARD_RIGHT) {
+      entity.setVelocityX(5)
+    }
+
+
+    requestAnimationFrame(update)
+  }
+
+  document.addEventListener('keydown', function (e) {
+    switch (e.keyCode) {
+      case 38:
+        KEYBOARD_UP = true; break;
+      case 40:
+        KEYBOARD_DOWN = true; break;
+      case 37:
+        KEYBOARD_LEFT = true; break;
+      case 39:
+        KEYBOARD_RIGHT = true; break;
+    }
+  })
+  window.addEventListener('keyup', function (e) {
+    switch (e.keyCode) {
+      case 38:
+        KEYBOARD_UP = false; break;
+      case 40:
+        KEYBOARD_DOWN = false; break;
+      case 37:
+        KEYBOARD_LEFT = false; break;
+      case 39:
+        KEYBOARD_RIGHT = false; break;
+    }
+  })
+
+  update()
+</script>
